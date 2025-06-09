@@ -24,11 +24,11 @@ An AI-driven system designed to analyze real-world traffic from video and simula
 - 📊 Vehicle counting per zone
 - 🛠️ Tools for drawing zones, extracting frames, and simulating
 - 🧮 More accurate counting: use center-point logic to reduce double-counting  
-- 🚘 Classify vehicle types (e.g., car, bus, bike) using YOLOv8 class labels
 ---
 
 ## 🚧 Next Milestones
-
+- 🚘 Classify vehicle types (e.g., car, bus, bike) using YOLOv8 class labels
+  
 - 🌍 Integrate real-time counts into the Pygame simulation (Step 2C) for adaptive light decisions
 
 - 🚦 Implement basic smart light control logic based on dynamic zone counts
