@@ -1,0 +1,53 @@
+
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Traffic Light System Dashboard</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                .header { text-align: center; margin-bottom: 30px; }
+                .plot-section { margin: 30px 0; }
+                .plot-section h2 { color: #333; border-bottom: 2px solid #007acc; }
+                .plot-section img { max-width: 100%; height: auto; border: 1px solid #ddd; }
+                .summary { background: #f5f5f5; padding: 20px; border-radius: 5px; }
+                .metric { display: inline-block; margin: 10px; padding: 10px; background: white; border-radius: 3px; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>🚦 AI Traffic Light System Dashboard</h1>
+                <p>Performance Evaluation and Benchmarking Results</p>
+            </div>
+        <div class="summary"><h2>Summary Statistics</h2>
+                    <div class="metric">
+                        <strong>rule-based - low_traffic</strong><br>
+                        Performance Score: 72.3<br>
+                        Throughput: 22.0 vehicles/min
+                    </div>
+                    
+                    <div class="metric">
+                        <strong>rl-agent - low_traffic</strong><br>
+                        Performance Score: 84.7<br>
+                        Throughput: 28.5 vehicles/min
+                    </div>
+                    
+                    <div class="metric">
+                        <strong>rule-based - medium_traffic</strong><br>
+                        Performance Score: 68.1<br>
+                        Throughput: 18.5 vehicles/min
+                    </div>
+                    
+                    <div class="metric">
+                        <strong>rl-agent - medium_traffic</strong><br>
+                        Performance Score: 79.2<br>
+                        Throughput: 25.8 vehicles/min
+                    </div>
+                    </div>
+            <div class="plot-section">
+                <h2>Performance Comparison 20250730 164536</h2>
+                <img src="demo_plots\performance_comparison_20250730_164536.png" alt="Performance Comparison 20250730 164536">
+            </div>
+            
+        </body>
+        </html>
+        
