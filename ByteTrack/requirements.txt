@@ -1,0 +1,23 @@
+# Core requirements 
+ultralytics==8.3.122           # YOLOv8 for detection 
+yolox                          # For ByteTrack tracking 
+opencv-python==4.11.0.86 
+numpy==1.26.4                  # Updated to a stable version 
+torch==2.7.0                   # Ensure CUDA version matches 
+torchvision==0.22.0            # Added for YOLOv8 support 
+onnxruntime            # For ONNX inference 
+pygame==2.5.2                  # For smart traffic simulation 
+pillow==10.4.0                 # Added for image processing 
+matplotlib==3.7.2              # Added for visualization 
+kiwisolver==1.4.5              # Added for matplotlib dependency 
+scikit-image                   # Used in YOLOX for augmentation/visualization 
+loguru                        # YOLOX logging 
+thop                          # YOLOX model profiling 
+tabulate                      # YOLOX output formatting 
+pycocotools            # COCO evaluation 
+tensorboard                   # For training logs 
+gymnasium==0.29.1 
+stable-baselines3==2.1.0 
+# Optional (but helpful) 
+tqdm                          # Progress bars 
+ninja                         # YOLOX build support 

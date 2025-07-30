@@ -1,120 +1,148 @@
-# 🚦 Smart AI-Powered Traffic Light System (Nairobi Prototype)
+# AI Traffic Light System
 
-An AI-driven system designed to analyze real-world traffic from video and simulate adaptive traffic light control — starting with Nairobi's most chaotic intersections.
+An intelligent traffic light control system that uses computer vision and reinforcement learning to optimize traffic flow.
 
-> Built for scalability, experimentation, and real-time decision-making using modern computer vision and tracking techniques.
+## System Architecture
 
----
+The system has been restructured into modular components:
 
-## 🎯 Core Goals
+### Core Modules
 
-- Replace static timers with intelligent light control
-- Use real-world data (video) to simulate behavior
-- Design modular tools to support custom experiments
-- Prioritize simplicity, clarity, and extendability
+- **`core/main.py`** - Main application entry point (simplified)
+- **`core/simulation/traffic_sim.py`** - Traffic light simulation with pygame
+- **`core/perception/counter.py`** - Vehicle detection and zone counting
+- **`core/utils/data_processor.py`** - Data processing coordination
+- **`core/utils/mock_zone_generator.py`** - Mock traffic data generation
 
----
+### Tools
 
-## ✅ Current Capabilities
+- **`tools/video_processor.py`** - Standalone video processing tool
+- **`tools/zone_drawer.py`** - Zone configuration tool
+- **`tools/frame_extractor.py`** - Video frame extraction
 
-- 🎥 Load and process traffic videos frame-by-frame
-- 🧠 Detect vehicles with YOLOv8
-- 🎯 Multi-zone, polygon-based detection (user-drawn)
-- 🔁 Multi-object tracking with ByteTrack
-- 📊 Vehicle counting per zone
-- 🛠️ Tools for drawing zones, extracting frames, and simulating
-- 🧮 More accurate counting: use center-point logic to reduce double-counting  
-- 🚘 Classify vehicle types (e.g., car, bus, bike) using YOLOv8 class labels
----
+## Quick Start
 
-## 🚧 Next Milestones
+### 1. Setup Environment
 
-- 🌍 Integrate real-time counts into the Pygame simulation (Step 2C) for adaptive light decisions
+```bash
+# Activate virtual environment
+venv\Scripts\activate  # Windows
+source venv/bin/activate  # Linux/Mac
 
-- 🚦 Implement basic smart light control logic based on dynamic zone counts
+# Install dependencies
+pip install -r requirements.txt
+```
 
-- 🧪 Improve simulation realism: Add animated vehicles + signal transitions
+### 2. Run the System
 
-- 📉 Measure per-zone congestion using vehicle density, wait time, and inflow/outflow rates
+#### Option A: Run with Mock Data (Recommended for testing)
+```bash
+python core/main.py
+```
 
-- 🧠 Train & compare RL agents for signal optimization (vs. hard-coded logic)
+This will start the traffic light simulation using mock data that updates every 2 seconds.
 
-- 📊 Design a lightweight dashboard for traffic state visualization & system control
+#### Option B: Process Video First, Then Run
+```bash
+# Process video to generate zone counts
+python tools/video_processor.py data/raw/rtvClip1.mp4 --display
 
-- ☁️ Prepare for cloud/offline deployment with modular zone config + input/output decoupling
----
+# Run the main system (it will use the processed data)
+python core/main.py
+```
 
-## 🧰 Tech Stack
+### 3. Controls
 
-- **Python 3.12**
-- **YOLOv8 (Ultralytics)**
-- **ByteTrack**
-- OpenCV, NumPy, Matplotlib
-- Git, GitHub, VS Code
+- **ESC** - Exit the application
+- **Close Window** - Exit the application
 
----
+## System Features
 
-## 🗂️ Project Structure (Simplified)
+### Traffic Light Simulation
+- Real-time traffic light control based on zone vehicle counts
+- Visual simulation with animated cars
+- Dynamic traffic light timing based on traffic density
+- Yellow light transitions between phases
 
-trafficAI/
-├── data/
-│ ├── raw/ # Input videos
-│ └── processed/ # Frames, detections, yolo_output
-├── scripts/ # Core logic modules
-│ ├── detect_vehicles.py # YOLO-based detection
-│ ├── zone_counter_bytetrack.py # Counting + tracking
-│ ├── frame_extractor.py # Frame grabbing
-│ ├── multi_zone_drawer.py # Polygon zone UI
-│ ├── stabilize_video.py # Frame stabilization
-│ └── play_video.py # Simple playback tool
-├── smart_traffic_ai/
-│ └── main.py # Entrypoint for pipeline orchestration
-├── yolov8n.pt # YOLOv8 model weights
-├── requirements.txt
-├── README.md
+### Vehicle Detection
+- YOLOv8-based vehicle detection
+- ByteTrack multi-object tracking
+- Zone-based vehicle counting
+- Support for cars, motorcycles, buses, and trucks
 
-yaml
-Copy
-Edit
+### Data Processing
+- Thread-safe data handling
+- Support for both video and mock data sources
+- Automatic fallback to mock data if video unavailable
+- Real-time data updates
 
-🗃️ *Old or experimental logic (Kalman, SORT, etc.) lives in `_archive_unused/` — useful for future experiments.*
+## Configuration
 
----
+### Zone Configuration
+Edit `configs/zones/intersection_a.json` to define detection zones:
 
-## 🚫 What’s Not in This Repo
+```json
+{
+  "Zone A": [[x1, y1], [x2, y2], [x3, y3], [x4, y4]],
+  "Zone B": [[x1, y1], [x2, y2], [x3, y3], [x4, y4]]
+}
+```
 
-> To keep the repo clean and focused, these are excluded via `.gitignore`:
+### Video Processing
+- Supported formats: MP4, MOV, AVI
+- Place videos in `data/raw/` directory
+- Default video: `data/raw/rtvClip1.mp4`
 
-- Large video files (`.mp4`, `.avi`, etc.)
-- Virtual environments (`.venv/`)
-- Model weights (`.pt`)
-- Cache files (`__pycache__/`)
-- Outputs, logs, and temporary data
+## Troubleshooting
 
----
+### Common Issues
 
-## 🧠 Philosophy
+1. **Import Error: No module named 'cython_bbox'**
+   - This is expected when running the main application
+   - Video processing requires additional setup
+   - Use mock data mode for testing
 
-- Modular code = better experiments  
-- Real-world video > synthetic data  
-- No black boxes: everything visible, editable, traceable  
-- Simplicity > cleverness
+2. **Video not found**
+   - System automatically falls back to mock data
+   - Check video path in configuration
 
----
+3. **Pygame window not appearing**
+   - Ensure virtual environment is activated
+   - Check for display/graphics driver issues
 
-## 👤 Author
+### Performance Optimization
 
-**Sanja Timothy**  
-Computer Science student – Nairobi, Kenya  
-💡 Focused on deployable, scalable AI systems for real-world impact.
+- Reduce video resolution for faster processing
+- Adjust update intervals in configuration
+- Use mock data for development/testing
 
----
+## Development
 
-## ⚙️ Running This Project
+### Adding New Features
 
-> You’ll need to:
+1. **New Detection Zones**: Edit zone configuration files
+2. **Custom Traffic Patterns**: Modify `MockZoneGenerator`
+3. **Different Traffic Light Logic**: Extend `TrafficSimulation`
 
-1. Set up a Python virtual environment
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
+### Testing
+
+```bash
+# Run unit tests
+python -m pytest tests/
+
+# Run integration tests
+python -m pytest tests/integration/
+```
+
+## Dependencies
+
+- **Python 3.10+**
+- **PyTorch 2.3.0**
+- **OpenCV 4.11.0**
+- **Pygame 2.5.2**
+- **Ultralytics 8.3.122**
+- **YOLOX** (included in ByteTrack)
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

@@ -1,7 +1,8 @@
 import cv2
 import numpy as np
+import os
 
-video_path = r"D:\XAMPP\htdocs\Projects\trafficAI\data\raw\roadTrafficVideo_trimmed.mp4"
+video_path = r"D:\Projects\ai-traffic-light-system\data\raw\rtvClip3.mp4"
 frame_number = 50  # Frame to pause and draw on
 
 # Target size for drawing (e.g., screen-friendly 1280x720)

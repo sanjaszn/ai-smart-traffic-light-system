@@ -3,7 +3,7 @@ import cv2
 
 # Get the base project directory
 base_dir = os.path.dirname(os.path.abspath(__file__))  # current file location
-video_path = os.path.join(base_dir, "data", "raw", "trafficVid.mp4")  # adjust path as needed
+video_path = os.path.join(base_dir, "data", "raw", "rtvClip3.mp4")  # adjust path as needed
 
 # Open the video
 cap = cv2.VideoCapture(video_path)

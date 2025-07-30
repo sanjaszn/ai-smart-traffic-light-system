@@ -1,113 +1,338 @@
+#!/usr/bin/env python3
+"""Enhanced Traffic Light Simulation Engine"""
 import pygame
-import random
 import time
+import random
 import json
-import os
+import numpy as np
+from pathlib import Path
+from typing import Dict, List, Tuple, Optional
 
-# Define path to zone_counts.json
-json_path = os.path.join(os.path.dirname(__file__), 'data', 'processed', 'zone_counts.json')
-
-def read_zone_counts():
-    try:
-        with open(json_path, "r") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        print(f"Warning: {json_path} not found.")
-        return {}
-    except json.JSONDecodeError:
-        print(f"Warning: Invalid JSON in {json_path}.")
-        return {}
-
-# Pygame Setup
-pygame.init()
-WIDTH, HEIGHT = 800, 600
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("AI Traffic Light Simulation")
-
-# Colors
-WHITE, BLACK, RED, GREEN, GREY = (255, 255, 255), (0, 0, 0), (200, 0, 0), (0, 200, 0), (120, 120, 120)
-clock = pygame.time.Clock()
-
-# Lane configuration
-lanes = {
-    'North': {'pos': (375, -50), 'dir': (0, 1)},
-    'South': {'pos': (425, HEIGHT + 50), 'dir': (0, -1)},
-    'East':  {'pos': (WIDTH + 50, 275), 'dir': (-1, 0)},
-    'West':  {'pos': (-50, 325), 'dir': (1, 0)},
-}
-signal_positions = {
-    'North': (360, 200),
-    'South': (440, 400),
-    'East': (500, 260),
-    'West': (300, 340),
+# Enhanced Configuration
+CONFIG = {
+    'WINDOW': (800, 600),
+    'COLORS': {
+        'WHITE': (255, 255, 255),
+        'BLACK': (0, 0, 0),
+        'RED': (255, 0, 0),
+        'GREEN': (0, 255, 0),
+        'GREY': (100, 100, 100),
+        'YELLOW': (255, 255, 0),
+        'LANE_COLOR': (200, 200, 200)
+    },
+    'LANES': {
+        'North': {'pos': (375, -50), 'dir': (0, 1)},
+        'South': {'pos': (425, 650), 'dir': (0, -1)},
+        'East': {'pos': (850, 275), 'dir': (-1, 0)},
+        'West': {'pos': (-50, 325), 'dir': (1, 0)}
+    },
+    'SIGNAL_POSITIONS': {
+        'North': (360, 200),
+        'South': (440, 400),
+        'East': (500, 260),
+        'West': (300, 340)
+    },
+    'TIMING': {
+        'MIN_GREEN_DURATION': 3,
+        'MAX_GREEN_DURATION': 10,
+        'YELLOW_DURATION': 1,
+        'SPAWN_INTERVAL': 0.5,
+        'ZONE_REFRESH': 1.0
+    },
+    'VEHICLE': {
+        'WIDTH': 30,
+        'HEIGHT': 15,
+        'SPEED': 3
+    }
 }
 
 class Car:
-    def __init__(self, direction):
+    """Enhanced vehicle class with better visualization"""
+    
+    def __init__(self, direction: str):
         self.direction = direction
-        self.x, self.y = lanes[direction]['pos']
-        self.dir_x, self.dir_y = lanes[direction]['dir']
+        self.x, self.y = CONFIG['LANES'][direction]['pos']
+        self.dir_x, self.dir_y = CONFIG['LANES'][direction]['dir']
         self.stopped = False
+        self.width = CONFIG['VEHICLE']['WIDTH']
+        self.height = CONFIG['VEHICLE']['HEIGHT']
+        self.speed = CONFIG['VEHICLE']['SPEED']
+        # Random color for each car
+        self.color = (
+            random.randint(50, 255),
+            random.randint(50, 255),
+            random.randint(50, 255)
+        )
 
-    def move(self, green_direction):
-        self.stopped = (self.direction != green_direction)
+    def move(self, green_direction: str):
+        """Move car based on current traffic light"""
+        approaching = (
+            (self.direction == 'North' and self.y < 250) or
+            (self.direction == 'South' and self.y > 350) or
+            (self.direction == 'East' and self.x > 450) or
+            (self.direction == 'West' and self.x < 350)
+        )
+        
+        self.stopped = approaching and (self.direction != green_direction)
         if not self.stopped:
-            self.x += self.dir_x * 2
-            self.y += self.dir_y * 2
+            self.x += self.dir_x * self.speed
+            self.y += self.dir_y * self.speed
 
     def draw(self, screen):
-        pygame.draw.rect(screen, BLACK, (self.x, self.y, 20, 10))
+        """Draw car with enhanced visualization"""
+        if self.stopped:
+            pygame.draw.rect(screen, CONFIG['COLORS']['RED'], 
+                           (self.x, self.y, self.width, self.height))
+        else:
+            pygame.draw.rect(screen, self.color,
+                           (self.x, self.y, self.width, self.height))
+        # Add windshield for better visual appeal
+        pygame.draw.rect(screen, CONFIG['COLORS']['BLACK'],
+                       (self.x + 5, self.y + 3, self.width - 10, 3))
 
-# Simulation state
-cars, spawn_timer = [], 0
-spawn_interval = 60
-green_duration = 5
-last_switch_time = time.time()
-green_direction = 'South'
-zone_values = {'South': 0, 'East': 0, 'North': 0, 'West': 0}
-last_zone_read_time = 0
-zone_refresh_interval = 1  # seconds
+class TrafficSimulation:
+    """Enhanced traffic light simulation with RL integration capabilities"""
+    
+    def __init__(self, data_file: str = "data/processed/zone_counts.json"):
+        self.data_file = Path(data_file)
+        self.zone_values = {'South': 0, 'East': 0, 'North': 0, 'West': 0}
+        self.last_modified = 0
+        self.auto_update = True
+        
+        # Pygame initialization
+        pygame.init()
+        self.screen = pygame.display.set_mode(CONFIG['WINDOW'])
+        pygame.display.set_caption("AI Traffic Light Simulation")
+        self.clock = pygame.time.Clock()
+        
+        # Simulation state
+        self.cars: List[Car] = []
+        self.green_direction = 'South'
+        self.next_green_direction = None
+        self.last_switch_time = time.time()
+        self.yellow_light_start = 0
+        self.running = True
+        self.car_spawn_rates = {'South': 0, 'East': 0, 'North': 0, 'West': 0}
+        self.last_spawn_time = time.time()
+        
+        # RL integration
+        self.rl_agent = None
+        self.rl_mode = False
 
-running = True
-while running:
-    screen.fill(GREY)
-    current_time = time.time()
+    def set_manual_mode(self):
+        """Disable automatic JSON polling"""
+        self.auto_update = False
 
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
+    def set_rl_mode(self, agent):
+        """Enable RL agent control"""
+        self.rl_agent = agent
+        self.rl_mode = True
 
-    if current_time - last_zone_read_time > zone_refresh_interval:
-        zone_counts = read_zone_counts()
-        zone_values = {
+    def check_for_updates(self):
+        """Check for zone count updates"""
+        try:
+            current_modified = self.data_file.stat().st_mtime
+            if current_modified > self.last_modified:
+                self.last_modified = current_modified
+                counts = json.loads(self.data_file.read_text())
+                self.update_zone_counts(counts)
+                print(f"File updated, new counts: {counts}")
+                return True
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f"Error reading zone counts: {e}")
+        return False
+
+    def update_zone_counts(self, zone_counts: Dict[str, int]):
+        """Update simulation with new zone counts"""
+        self.zone_values = {
             'South': zone_counts.get("Zone A", 0),
-            'East':  zone_counts.get("Zone B", 0),
+            'East': zone_counts.get("Zone B", 0),
             'North': zone_counts.get("Zone C", 0),
-            'West':  0  # Not used; included for structure
+            'West': zone_counts.get("Zone D", 0)
         }
-        last_zone_read_time = current_time
-        print("Updated zone counts:", zone_values)
+        
+        # Normalize spawn rates
+        total = sum(self.zone_values.values()) or 1
+        for direction in self.zone_values:
+            self.car_spawn_rates[direction] = self.zone_values[direction] / total
+        
+        # Debug output
+        print(f"Updated zone counts: {self.zone_values}")
 
-    if current_time - last_switch_time > green_duration:
-        new_green = max(zone_values, key=zone_values.get)
-        if new_green != green_direction:
-            green_direction = new_green
-            print(f"Green light switched to: {green_direction}")
-        last_switch_time = current_time
+    def get_state_for_rl(self) -> Dict[str, np.ndarray]:
+        """Get current state for RL agent"""
+        return {
+            'zone_counts': np.array([
+                self.zone_values['North'],
+                self.zone_values['East'], 
+                self.zone_values['South'],
+                self.zone_values['West']
+            ], dtype=np.int32),
+            'current_phase': np.array([self._direction_to_phase(self.green_direction)], dtype=np.int32),
+            'elapsed_time': np.array([time.time() - self.last_switch_time], dtype=np.float32)
+        }
 
-    spawn_timer += 1
-    if spawn_timer >= spawn_interval:
-        spawn_timer = 0
-        cars.append(Car(random.choice(['North', 'South', 'East', 'West'])))
+    def _direction_to_phase(self, direction: str) -> int:
+        """Convert direction string to phase number"""
+        return {'North': 0, 'East': 1, 'South': 2, 'West': 3}[direction]
 
-    for car in cars:
-        car.move(green_direction)
-        car.draw(screen)
+    def _phase_to_direction(self, phase: int) -> str:
+        """Convert phase number to direction string"""
+        return ['North', 'East', 'South', 'West'][phase]
 
-    for direction, pos in signal_positions.items():
-        pygame.draw.circle(screen, GREEN if direction == green_direction else RED, pos, 10)
+    def update_traffic_lights(self):
+        """Update traffic lights based on current state or RL agent"""
+        current_time = time.time()
+        time_since_switch = current_time - self.last_switch_time
+        
+        # Handle yellow light transition
+        if self.next_green_direction:
+            if current_time - self.yellow_light_start >= CONFIG['TIMING']['YELLOW_DURATION']:
+                self.green_direction = self.next_green_direction
+                self.next_green_direction = None
+                self.last_switch_time = current_time
+            return
+        
+        # RL agent decision
+        if self.rl_mode and self.rl_agent:
+            try:
+                state = self.get_state_for_rl()
+                action, _ = self.rl_agent.predict(state, deterministic=True)
+                direction = int(np.clip(action[0], 0, 3))
+                duration = float(np.clip(action[1], 5, 30))
+                
+                new_direction = self._phase_to_direction(direction)
+                if new_direction != self.green_direction:
+                    self.next_green_direction = new_direction
+                    self.yellow_light_start = current_time
+                return
+            except Exception as e:
+                print(f"RL agent error: {e}, falling back to rule-based")
+                self.rl_mode = False
+        
+        # Rule-based logic (fallback)
+        max_count = max(self.zone_values.values())
+        min_duration = CONFIG['TIMING']['MIN_GREEN_DURATION']
+        max_duration = CONFIG['TIMING']['MAX_GREEN_DURATION']
+        desired_duration = min(max_duration, min_duration + max_count * 0.5)
+            
+        if time_since_switch > desired_duration:
+            candidates = {k: v for k, v in self.zone_values.items() 
+                        if k != self.green_direction and v > 0}
+            
+            if candidates:
+                new_green = max(candidates, key=candidates.get)
+                if self.zone_values[new_green] > self.zone_values[self.green_direction]:
+                    self.next_green_direction = new_green
+                    self.yellow_light_start = current_time
 
-    pygame.display.flip()
-    clock.tick(60)
+    def spawn_cars(self):
+        """Spawn cars based on zone counts from JSON file"""
+        current_time = time.time()
+        if current_time - self.last_spawn_time < CONFIG['TIMING']['SPAWN_INTERVAL']:
+            return
+            
+        # Use zone counts directly for spawning
+        total_traffic = sum(self.zone_values.values())
+        if total_traffic == 0:
+            return
+            
+        # Spawn cars based on zone counts
+        for direction, count in self.zone_values.items():
+            if count > 0:
+                # Spawn probability based on count
+                spawn_prob = min(0.8, count / (total_traffic + 1))
+                if random.random() < spawn_prob:
+                    self.cars.append(Car(direction))
+                    self.last_spawn_time = current_time
+                    print(f"Spawned car in {direction} direction (count: {count})")
+                    break  # Only spawn one car per update to avoid flooding
 
-pygame.quit()
+    def render(self):
+        """Enhanced rendering with lane markings and better visuals"""
+        self.screen.fill(CONFIG['COLORS']['GREY'])
+        
+        # Draw lane markings
+        for lane in CONFIG['LANES'].values():
+            start_pos = lane['pos']
+            if lane['dir'][0] == 0:  # Vertical lanes
+                pygame.draw.line(self.screen, CONFIG['COLORS']['LANE_COLOR'], 
+                               (start_pos[0], 0), (start_pos[0], CONFIG['WINDOW'][1]), 2)
+            else:  # Horizontal lanes
+                pygame.draw.line(self.screen, CONFIG['COLORS']['LANE_COLOR'],
+                               (0, start_pos[1]), (CONFIG['WINDOW'][0], start_pos[1]), 2)
+        
+        # Draw traffic lights
+        current_time = time.time()
+        for direction, pos in CONFIG['SIGNAL_POSITIONS'].items():
+            if direction == self.green_direction:
+                color = CONFIG['COLORS']['GREEN']
+            elif self.next_green_direction and direction in [self.green_direction, self.next_green_direction]:
+                if (current_time - self.yellow_light_start) % 0.5 < 0.25:
+                    color = CONFIG['COLORS']['YELLOW']
+                else:
+                    color = CONFIG['COLORS']['BLACK']
+            else:
+                color = CONFIG['COLORS']['RED']
+            
+            pygame.draw.circle(self.screen, color, pos, 10)
+        
+        # Handle cars
+        self.spawn_cars()
+        for car in self.cars[:]:
+            car.move(self.green_direction)
+            car.draw(self.screen)
+            if self._is_off_screen(car):
+                self.cars.remove(car)
+        
+        # Display zone counts and mode
+        font = pygame.font.SysFont(None, 24)
+        y_offset = 20
+        
+        # Mode indicator
+        mode_text = "RL Mode" if self.rl_mode else "Rule-Based"
+        mode_color = CONFIG['COLORS']['GREEN'] if self.rl_mode else CONFIG['COLORS']['YELLOW']
+        text = font.render(f"Mode: {mode_text}", True, mode_color)
+        self.screen.blit(text, (10, y_offset))
+        y_offset += 25
+        
+        # Zone counts
+        for zone, count in self.zone_values.items():
+            color = CONFIG['COLORS']['GREEN'] if zone == self.green_direction else CONFIG['COLORS']['BLACK']
+            text = font.render(f"{zone}: {count}", True, color)
+            self.screen.blit(text, (10, y_offset))
+            y_offset += 25
+        
+        pygame.display.flip()
+
+    def _is_off_screen(self, car) -> bool:
+        """Check if car is outside visible area"""
+        return (car.x < -100 or car.x > CONFIG['WINDOW'][0] + 100 or 
+                car.y < -100 or car.y > CONFIG['WINDOW'][1] + 100)
+
+    def run(self):
+        """Main simulation loop"""
+        while self.running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.running = False
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        self.running = False
+            
+            self.check_for_updates()
+            self.update_traffic_lights()
+            self.render()
+            self.clock.tick(60)
+        
+        pygame.quit()
+
+    def quit(self):
+        """Clean shutdown"""
+        self.running = False
+        pygame.quit()
+
+
+if __name__ == "__main__":
+    sim = TrafficSimulation()
+    sim.run()
