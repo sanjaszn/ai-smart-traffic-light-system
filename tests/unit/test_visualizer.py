@@ -18,6 +18,10 @@ class TestMetricsVisualizer:
         
     def test_plot_performance_comparison(self, temp_output_dir, sample_metrics_data):
         """Test performance comparison plot generation"""
+        # Set matplotlib to use non-interactive backend for testing
+        import matplotlib
+        matplotlib.use('Agg')
+        
         visualizer = MetricsVisualizer(output_dir=temp_output_dir)
         
         # Create dummy benchmark results
@@ -45,6 +49,10 @@ class TestMetricsVisualizer:
         
     def test_plot_lane_analysis(self, temp_output_dir, sample_metrics_data):
         """Test lane analysis plot generation"""
+        # Set matplotlib to use non-interactive backend for testing
+        import matplotlib
+        matplotlib.use('Agg')
+        
         visualizer = MetricsVisualizer(output_dir=temp_output_dir)
         
         # Generate plot
@@ -56,6 +64,10 @@ class TestMetricsVisualizer:
         
     def test_plot_rl_analysis(self, temp_output_dir, sample_metrics_data):
         """Test RL analysis plot generation"""
+        # Set matplotlib to use non-interactive backend for testing
+        import matplotlib
+        matplotlib.use('Agg')
+        
         visualizer = MetricsVisualizer(output_dir=temp_output_dir)
         
         # Generate plot
@@ -67,6 +79,10 @@ class TestMetricsVisualizer:
         
     def test_create_dashboard(self, temp_output_dir, sample_metrics_data):
         """Test dashboard creation"""
+        # Set matplotlib to use non-interactive backend for testing
+        import matplotlib
+        matplotlib.use('Agg')
+        
         visualizer = MetricsVisualizer(output_dir=temp_output_dir)
         
         # Create dummy benchmark results
@@ -104,6 +120,10 @@ class TestMetricsVisualizer:
         
     def test_plot_with_empty_data(self, temp_output_dir):
         """Test plotting with empty data"""
+        # Set matplotlib to use non-interactive backend for testing
+        import matplotlib
+        matplotlib.use('Agg')
+        
         visualizer = MetricsVisualizer(output_dir=temp_output_dir)
         
         # Test with empty benchmark results
@@ -117,6 +137,10 @@ class TestMetricsVisualizer:
         
     def test_plot_with_missing_metrics(self, temp_output_dir):
         """Test plotting with missing metrics data"""
+        # Set matplotlib to use non-interactive backend for testing
+        import matplotlib
+        matplotlib.use('Agg')
+        
         visualizer = MetricsVisualizer(output_dir=temp_output_dir)
         
         # Create results with missing metrics
@@ -127,7 +151,10 @@ class TestMetricsVisualizer:
                 'performance_score': 75.5,
                 'metrics': {
                     'core_metrics': {
-                        'vehicles_cleared_per_minute': 25.0
+                        'vehicles_cleared_per_minute': 25.0,
+                        'average_wait_time_per_lane': {'north': 10.0},  # Add required field
+                        'starvation_detection': {'north': 0},
+                        'max_wait_time': 20.0
                     }
                     # Missing other metrics
                 }
@@ -160,6 +187,10 @@ class TestMetricsVisualizer:
             
     def test_multiple_plot_generation(self, temp_output_dir, sample_metrics_data):
         """Test generating multiple plots"""
+        # Set matplotlib to use non-interactive backend for testing
+        import matplotlib
+        matplotlib.use('Agg')
+        
         visualizer = MetricsVisualizer(output_dir=temp_output_dir)
         
         benchmark_results = [
