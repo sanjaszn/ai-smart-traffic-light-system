@@ -17,7 +17,7 @@ sns.set_palette("husl")
 class MetricsVisualizer:
     """Visualization tools for traffic metrics and benchmark results"""
     
-    def __init__(self, output_dir: str = "evaluation_plots"):
+    def __init__(self, output_dir: str = "test_plots"):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True)
         
@@ -26,6 +26,27 @@ class MetricsVisualizer:
         """Create performance comparison plots"""
         fig, axes = plt.subplots(2, 2, figsize=(15, 12))
         fig.suptitle('Traffic Light Control Performance Comparison', fontsize=16, fontweight='bold')
+        
+        # Handle empty data case
+        if not benchmark_results:
+            # Create empty plot with message
+            for ax in axes.flat:
+                ax.text(0.5, 0.5, 'No data available\nfor comparison', 
+                       ha='center', va='center', transform=ax.transAxes,
+                       fontsize=14, bbox=dict(boxstyle="round,pad=0.3", facecolor="lightgray"))
+                ax.set_xticks([])
+                ax.set_yticks([])
+            
+            plt.tight_layout()
+            
+            if save_plot:
+                plot_path = self.output_dir / f"performance_comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+                plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+                plt.close()
+                return str(plot_path)
+            else:
+                plt.show()
+                return ""
         
         # Extract data
         scenarios = []
@@ -312,7 +333,7 @@ class MetricsVisualizer:
         # Create HTML dashboard
         html_content = self._generate_dashboard_html(plots, benchmark_results)
         
-        with open(dashboard_path, 'w') as f:
+        with open(dashboard_path, 'w', encoding='utf-8') as f:
             f.write(html_content)
             
         return str(dashboard_path)
