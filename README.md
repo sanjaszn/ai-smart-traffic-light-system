@@ -104,7 +104,7 @@ Edit
 
 ## 👤 Author
 
-**Sanja Timothy**  
+**Sanja Timothy Smart**  
 Computer Science student – Nairobi, Kenya  
 💡 Focused on deployable, scalable AI systems for real-world impact.
 
