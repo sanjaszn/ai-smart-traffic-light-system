@@ -4,6 +4,7 @@ import sys
 import os
 import time
 import pygame
+import json
 from pathlib import Path
 
 # Add project root to path
@@ -24,14 +25,15 @@ def main():
     try:
         logger.info("Starting AI Traffic Light System")
         
-        # Initialize mock data generator
+        # Initialize mock data generator with slower updates
         mock_generator = MockZoneGenerator(DATA_FILE, 20.0)  # Update every 20 seconds
         
         # Ensure data directory exists
         Path(DATA_FILE).parent.mkdir(parents=True, exist_ok=True)
         
-        # Initialize with empty counts
-        mock_generator.output_path.write_text('{"Zone A": 0, "Zone B": 0, "Zone C": 0, "Zone D": 0}')
+        # Initialize with some traffic data
+        initial_data = {"Zone A": 5, "Zone B": 3, "Zone C": 7, "Zone D": 2}
+        mock_generator.output_path.write_text(json.dumps(initial_data, indent=2))
         
         # Start mock data generation in background
         import threading
@@ -40,7 +42,8 @@ def main():
         
         # Initialize simulation
         sim = TrafficSimulation(DATA_FILE)
-        sim.set_manual_mode()  # Manual mode for controlled updates
+        # Keep auto_update enabled for dynamic updates
+        sim.auto_update = True
         
         # Main application loop
         last_update = 0
