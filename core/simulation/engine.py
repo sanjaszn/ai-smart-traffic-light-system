@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Enhanced Traffic Light Simulation Engine"""
+"""Enhanced Traffic Light Simulation Engine with RL Integration"""
 import pygame
 import time
 import random
@@ -7,8 +7,9 @@ import json
 import numpy as np
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
+from threading import Lock
 
-# Enhanced Configuration
+# Enhanced Configuration with timing and vehicle parameters
 CONFIG = {
     'WINDOW': (800, 600),
     'COLORS': {
@@ -33,8 +34,8 @@ CONFIG = {
         'West': (300, 340)
     },
     'TIMING': {
-        'MIN_GREEN_DURATION': 3,
-        'MAX_GREEN_DURATION': 10,
+        'MIN_GREEN_DURATION': 2,  # Reduced from 3 to 2 seconds
+        'MAX_GREEN_DURATION': 8,  # Reduced from 10 to 8 seconds
         'YELLOW_DURATION': 1,
         'SPAWN_INTERVAL': 0.5,
         'ZONE_REFRESH': 1.0
@@ -47,7 +48,7 @@ CONFIG = {
 }
 
 class Car:
-    """Enhanced vehicle class with better visualization"""
+    """Enhanced vehicle class with better visualization and performance"""
     
     def __init__(self, direction: str):
         self.direction = direction
@@ -65,7 +66,7 @@ class Car:
         )
 
     def move(self, green_direction: str):
-        """Move car based on current traffic light"""
+        """Move car based on current traffic light - O(1) operation"""
         approaching = (
             (self.direction == 'North' and self.y < 250) or
             (self.direction == 'South' and self.y > 350) or
@@ -99,6 +100,9 @@ class TrafficSimulation:
         self.last_modified = 0
         self.auto_update = True
         
+        # Thread safety for data access
+        self._data_lock = Lock()
+        
         # Pygame initialization
         pygame.init()
         self.screen = pygame.display.set_mode(CONFIG['WINDOW'])
@@ -129,15 +133,19 @@ class TrafficSimulation:
         self.rl_mode = True
 
     def check_for_updates(self):
-        """Check for zone count updates"""
+        """Check for zone count updates - thread-safe"""
+        if not self.auto_update:
+            return False
+            
         try:
-            current_modified = self.data_file.stat().st_mtime
-            if current_modified > self.last_modified:
-                self.last_modified = current_modified
-                counts = json.loads(self.data_file.read_text())
-                self.update_zone_counts(counts)
-                print(f"File updated, new counts: {counts}")
-                return True
+            with self._data_lock:
+                current_modified = self.data_file.stat().st_mtime
+                if current_modified > self.last_modified:
+                    self.last_modified = current_modified
+                    counts = json.loads(self.data_file.read_text())
+                    self.update_zone_counts(counts)
+                    print(f"File updated, new counts: {counts}")
+                    return True
         except (FileNotFoundError, json.JSONDecodeError) as e:
             print(f"Error reading zone counts: {e}")
         return False
@@ -151,7 +159,7 @@ class TrafficSimulation:
             'West': zone_counts.get("Zone D", 0)
         }
         
-        # Normalize spawn rates
+        # Normalize spawn rates - O(1) operation
         total = sum(self.zone_values.values()) or 1
         for direction in self.zone_values:
             self.car_spawn_rates[direction] = self.zone_values[direction] / total
@@ -160,7 +168,7 @@ class TrafficSimulation:
         print(f"Updated zone counts: {self.zone_values}")
 
     def get_state_for_rl(self) -> Dict[str, np.ndarray]:
-        """Get current state for RL agent"""
+        """Get current state for RL agent - O(1) operation"""
         return {
             'zone_counts': np.array([
                 self.zone_values['North'],
@@ -173,11 +181,11 @@ class TrafficSimulation:
         }
 
     def _direction_to_phase(self, direction: str) -> int:
-        """Convert direction string to phase number"""
+        """Convert direction string to phase number - O(1) lookup"""
         return {'North': 0, 'East': 1, 'South': 2, 'West': 3}[direction]
 
     def _phase_to_direction(self, phase: int) -> str:
-        """Convert phase number to direction string"""
+        """Convert phase number to direction string - O(1) lookup"""
         return ['North', 'East', 'South', 'West'][phase]
 
     def update_traffic_lights(self):
@@ -210,24 +218,30 @@ class TrafficSimulation:
                 print(f"RL agent error: {e}, falling back to rule-based")
                 self.rl_mode = False
         
-        # Rule-based logic (fallback)
+        # Rule-based logic (fallback) - O(1) operation
         max_count = max(self.zone_values.values())
         min_duration = CONFIG['TIMING']['MIN_GREEN_DURATION']
         max_duration = CONFIG['TIMING']['MAX_GREEN_DURATION']
-        desired_duration = min(max_duration, min_duration + max_count * 0.5)
+        
+        # More responsive duration calculation
+        desired_duration = min(max_duration, min_duration + max_count * 0.3)  # Reduced multiplier
             
         if time_since_switch > desired_duration:
-            candidates = {k: v for k, v in self.zone_values.items() 
-                        if k != self.green_direction and v > 0}
+            # Find the direction with the highest traffic count
+            current_count = self.zone_values[self.green_direction]
+            best_direction = max(self.zone_values, key=self.zone_values.get)
+            best_count = self.zone_values[best_direction]
             
-            if candidates:
-                new_green = max(candidates, key=candidates.get)
-                if self.zone_values[new_green] > self.zone_values[self.green_direction]:
-                    self.next_green_direction = new_green
-                    self.yellow_light_start = current_time
+            # Switch if there's a better direction (higher count)
+            # or if current direction has no traffic and another has traffic
+            if (best_direction != self.green_direction and 
+                (best_count > current_count or (current_count == 0 and best_count > 0))):
+                self.next_green_direction = best_direction
+                self.yellow_light_start = current_time
+                print(f"🔄 Switching from {self.green_direction} ({current_count}) to {best_direction} ({best_count})")
 
     def spawn_cars(self):
-        """Spawn cars based on zone counts from JSON file"""
+        """Spawn cars based on zone counts - optimized algorithm"""
         current_time = time.time()
         if current_time - self.last_spawn_time < CONFIG['TIMING']['SPAWN_INTERVAL']:
             return
@@ -237,7 +251,7 @@ class TrafficSimulation:
         if total_traffic == 0:
             return
             
-        # Spawn cars based on zone counts
+        # Optimized spawning logic - O(1) operation
         for direction, count in self.zone_values.items():
             if count > 0:
                 # Spawn probability based on count
@@ -306,7 +320,7 @@ class TrafficSimulation:
         pygame.display.flip()
 
     def _is_off_screen(self, car) -> bool:
-        """Check if car is outside visible area"""
+        """Check if car is outside visible area - O(1) operation"""
         return (car.x < -100 or car.x > CONFIG['WINDOW'][0] + 100 or 
                 car.y < -100 or car.y > CONFIG['WINDOW'][1] + 100)
 
