@@ -6,7 +6,7 @@ import random
 import json
 import numpy as np
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Any
 from threading import Lock
 
 # Enhanced Configuration with timing and vehicle parameters
@@ -120,17 +120,18 @@ class TrafficSimulation:
         self.last_spawn_time = time.time()
         
         # RL integration
-        self.rl_agent = None
+        self.rl_controller = None
         self.rl_mode = False
 
     def set_manual_mode(self):
         """Disable automatic JSON polling"""
         self.auto_update = False
 
-    def set_rl_mode(self, agent):
-        """Enable RL agent control"""
-        self.rl_agent = agent
+    def set_rl_mode(self, rl_controller):
+        """Enable RL agent control using RL Controller"""
+        self.rl_controller = rl_controller
         self.rl_mode = True
+        print("🤖 RL mode enabled - using trained agent for traffic control")
 
     def check_for_updates(self):
         """Check for zone count updates - thread-safe"""
@@ -167,17 +168,15 @@ class TrafficSimulation:
         # Debug output
         print(f"Updated zone counts: {self.zone_values}")
 
-    def get_state_for_rl(self) -> Dict[str, np.ndarray]:
+    def get_state_for_rl(self) -> Dict[str, Any]:
         """Get current state for RL agent - O(1) operation"""
         return {
-            'zone_counts': np.array([
-                self.zone_values['North'],
-                self.zone_values['East'], 
-                self.zone_values['South'],
-                self.zone_values['West']
-            ], dtype=np.int32),
-            'current_phase': np.array([self._direction_to_phase(self.green_direction)], dtype=np.int32),
-            'elapsed_time': np.array([time.time() - self.last_switch_time], dtype=np.float32)
+            'South': self.zone_values['South'],
+            'East': self.zone_values['East'], 
+            'North': self.zone_values['North'],
+            'West': self.zone_values['West'],
+            'current_phase': self._direction_to_phase(self.green_direction),
+            'elapsed_time': time.time() - self.last_switch_time
         }
 
     def _direction_to_phase(self, direction: str) -> int:
@@ -202,17 +201,15 @@ class TrafficSimulation:
             return
         
         # RL agent decision
-        if self.rl_mode and self.rl_agent:
+        if self.rl_mode and self.rl_controller:
             try:
                 state = self.get_state_for_rl()
-                action, _ = self.rl_agent.predict(state, deterministic=True)
-                direction = int(np.clip(action[0], 0, 3))
-                duration = float(np.clip(action[1], 5, 30))
+                direction, duration = self.rl_controller.get_action(state)
                 
-                new_direction = self._phase_to_direction(direction)
-                if new_direction != self.green_direction:
-                    self.next_green_direction = new_direction
+                if direction != self.green_direction:
+                    self.next_green_direction = direction
                     self.yellow_light_start = current_time
+                    print(f"🧠 RL Decision: {direction} for {duration:.1f}s")
                 return
             except Exception as e:
                 print(f"RL agent error: {e}, falling back to rule-based")
